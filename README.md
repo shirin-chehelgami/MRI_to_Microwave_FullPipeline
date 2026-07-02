@@ -112,8 +112,6 @@ The repository includes **10 sample patients** already in `data/Duke-Breast-Canc
     python full_pipeline.py --patient Breast_MRI_001 --skip-segmentation --muscle-thickness-mm 0
 
 * Change FREQS = [3.0] in full_pipeline.py for more frequencies
-Requires the Duke models, MAMA-MIA data, and DICOM under the paths in mri_to_phantom.py.
-Outputs land in outputs/<patient>/.
 
 
 ## Run
