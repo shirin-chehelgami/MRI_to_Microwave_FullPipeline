@@ -12,8 +12,8 @@ This pipeline processes Duke breast MRI datasets through two main stages:
          Lew CO, Harouni M, Kirksey ER, Kang EJ, Dong H, Gu H, Grimm LJ, Walsh R, Lowell DA, Mazurowski MA. A publicly available deep learning model and dataset for segmentation of breast, fibroglandular tissue, and vessels in breast MRI. Sci Rep. 2024 Mar 5;14(1):5383. doi: 10.1038/s41598-024-54048-2. PMID: 38443410; PMCID: PMC10915139.
 3. **Tumor Segmentation** - Uses Mamamia expert's tumor segmentation
 
-   
-      Garrucho, L., Kushibar, K., Reidel, CA. et al. A large-scale multicenter breast cancer DCE-MRI benchmark dataset with expert segmentations. Sci Data 12, 453 (2025). https://doi.org/10.1038/s41597-025-04707-4
+
+         Garrucho, L., Kushibar, K., Reidel, CA. et al. A large-scale multicenter breast cancer DCE-MRI benchmark dataset with expert segmentations. Sci Data 12, 453 (2025). https://doi.org/10.1038/s41597-025-04707-4
 5. **Dielectric Conversion** - Converts segmented tissue labels to frequency-dependent dielectric properties (ε′, ε″, σ)
 
    
