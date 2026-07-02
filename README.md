@@ -8,8 +8,11 @@ A complete pipeline for breast MRI segmentation and dielectric property conversi
 
 This pipeline processes Duke breast MRI datasets through two main stages:
 1. **Segmentation** - Uses Duke's pre-trained models to segment breast tissue (fat and FGT/fibroglandular tissue)
-2. **Tumor Segmentation** - Uses Mamamia expert's tumor segmentation
-3. **Dielectric Conversion** - Converts segmented tissue labels to frequency-dependent dielectric properties (ε′, ε″, σ)
+         Lew CO, Harouni M, Kirksey ER, Kang EJ, Dong H, Gu H, Grimm LJ, Walsh R, Lowell DA, Mazurowski MA. A publicly available deep learning model and dataset for segmentation of breast, fibroglandular tissue, and vessels in breast MRI. Sci Rep. 2024 Mar 5;14(1):5383. doi: 10.1038/s41598-024-54048-2. PMID: 38443410; PMCID: PMC10915139.
+3. **Tumor Segmentation** - Uses Mamamia expert's tumor segmentation
+      Garrucho, L., Kushibar, K., Reidel, CA. et al. A large-scale multicenter breast cancer DCE-MRI benchmark dataset with expert segmentations. Sci Data 12, 453 (2025). https://doi.org/10.1038/s41597-025-04707-4
+5. **Dielectric Conversion** - Converts segmented tissue labels to frequency-dependent dielectric properties (ε′, ε″, σ)
+         Zastrow E, Davis SK, Lazebnik M, Kelcz F, Van Veen BD, Hagness SC. Development of anatomically realistic numerical breast phantoms with accurate dielectric properties for modeling microwave interactions with the human breast. IEEE Trans Biomed Eng. 2008 Dec;55(12):2792-800. doi: 10.1109/TBME.2008.2002130. PMID: 19126460; PMCID: PMC2621084.
 
 ## Repository Structure
 
