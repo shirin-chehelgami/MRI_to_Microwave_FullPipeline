@@ -35,6 +35,8 @@ MRI_To_Microwave_Breast_Data/
 
 ├── preprocessing.py # z-score + SWITCHING median (cross footprint, k=3): edge-preserving impulse removal
 
+├── nii_to_chamber.py # create voxel file for Forward Solver
+
 ├── 3D-Breast-FGT-and-Blood-Vessel-Segmentation-main/ # Duke's models for breast and FGT segmentation
 
 ├── data/
