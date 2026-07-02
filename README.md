@@ -1,4 +1,96 @@
-# Breast MRI -> dielectric phantom pipeline
+markdown
+
+# MRI to Microwave Breast Data Processing Pipeline
+
+A complete pipeline for breast MRI segmentation and dielectric property conversion for microwave imaging applications.
+
+## Overview
+
+This pipeline processes Duke breast MRI datasets through two main stages:
+1. **Segmentation** - Uses Duke's pre-trained models to segment breast tissue (fat and FGT/fibroglandular tissue)
+2. **Tumor Segmentation** - Uses Mamamia expert's tumor segmentation
+3. **Dielectric Conversion** - Converts segmented tissue labels to frequency-dependent dielectric properties (ε′, ε″, σ)
+
+## Repository Structure
+
+MRI_To_Microwave_Breast_Data/
+
+├── mri_to_phantom.py # Main segmentation script
+
+├── label_to_dielectric_duke.py # Dielectric property conversion
+
+├── requirements.txt
+
+├── 3D-Breast-FGT-and-Blood-Vessel-Segmentation-main/ # Duke's models for breast and FGT segmentation
+
+├── data/
+
+│ ├── mamamia_duke/ # MAMA-MIA duke dataset (tumor masks)
+
+│ │ ├── images/
+
+│ │ └── segmentations/
+
+│ ├── Duke-Breast-Cancer-MRI/ # Original duke dataset
+
+│── Breast_MRI_001/
+
+├── Breast_MRI_002/
+
+└── ...
+└── outputs/ # All results saved here
+
+├── Breast_MRI_001/
+
+├── Breast_MRI_002/
+
+└── ...
+text
+
+
+## Prerequisites
+
+- Python 3.8 or higher
+- CUDA-capable GPU 
+
+## Installation
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/yourusername/MRI_To_Microwave_Breast_Data.git
+cd MRI_To_Microwave_Breast_Data
+```
+
+### 2. Install Dependencies
+```bash
+
+pip install -r requirements.txt
+```
+
+
+
+
+## Dataset Download Instructions
+
+### Option 1: Download Full Dataset (Recommended)
+
+The Duke Breast Cancer MRI dataset is available through The Cancer Imaging Archive (TCIA).
+
+1. **Download NBIA Data Retriever** from: https://wiki.cancerimagingarchive.net/display/NBIA/Downloading+TCIA+Images
+
+2. **Use the manifest file** provided in `data/manifest-1778260423557.tcia`
+   - Double-click the `.tcia` file
+   - It will open with NBIA Data Retriever
+   - Select your download destination
+   - Click "Start" to download all images
+
+3. **Organize downloaded data** into `data/Duke-Breast-Cancer-MRI/`
+
+### Option 2: Use Sample Data (Quick Test)
+
+The repository includes **10 sample patients** already in `data/Duke-Breast-Cancer-MRI/` for testing. To get the full dataset, follow Option 1 above.
+
+
 
 **Preprocessing (this package):** z-score + SWITCHING median (cross footprint, k=3): edge-preserving impulse removal.
 
