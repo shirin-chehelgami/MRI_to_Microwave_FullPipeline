@@ -25,9 +25,15 @@ MRI_To_Microwave_Breast_Data/
 
 ├── mri_to_phantom.py # Main segmentation script
 
-├── label_to_dielectric_duke.py # Dielectric property conversion
+├── full_pipeline.py
 
-├── requirements.txt
+├── compare_dielectric.py
+
+├── dielectric_methods.py
+
+├── split_muscle.py
+
+├── preprocessing.py
 
 ├── 3D-Breast-FGT-and-Blood-Vessel-Segmentation-main/ # Duke's models for breast and FGT segmentation
 
@@ -65,7 +71,7 @@ text
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/MRI_To_Microwave_Breast_Data.git
+git clone https://github.com/yourusername/MRI_To_Microwave_FullPipeline.git
 cd MRI_To_Microwave_Breast_Data
 ```
 
