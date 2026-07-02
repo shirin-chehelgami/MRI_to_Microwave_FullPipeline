@@ -23,17 +23,17 @@ This pipeline processes Duke breast MRI datasets through two main stages:
 
 MRI_To_Microwave_Breast_Data/
 
-├── mri_to_phantom.py # Main segmentation script
+├── mri_to_phantom.py # DICOM -> RAS -> preprocess -> Duke breast/FGT segmentation + tumour alignment -> image+label NIfTI
 
 ├── full_pipeline.py
 
-├── compare_dielectric.py
+├── compare_dielectric.py # seg-vs-gmm comparison plots
 
-├── dielectric_methods.py
+├── dielectric_methods.py # "ours" piecewise-linear Cole-Cole mapping; TWO versions: ours_segmentation, ours_gmm
 
-├── split_muscle.py
+├── split_muscle.py # split breasts, add contoured muscle + skin shell
 
-├── preprocessing.py
+├── preprocessing.py # z-score + SWITCHING median (cross footprint, k=3): edge-preserving impulse removal
 
 ├── 3D-Breast-FGT-and-Blood-Vessel-Segmentation-main/ # Duke's models for breast and FGT segmentation
 
@@ -104,17 +104,6 @@ The Duke Breast Cancer MRI dataset is available through The Cancer Imaging Archi
 
 The repository includes **10 sample patients** already in `data/Duke-Breast-Cancer-MRI/` for testing. To get the full dataset, follow Option 1 above.
 
-
-
-**Preprocessing (this package):** z-score + SWITCHING median (cross footprint, k=3): edge-preserving impulse removal.
-
-
-## Pipeline
-1. `mri_to_phantom.py` — DICOM -> RAS -> preprocess -> Duke breast/FGT segmentation + tumour alignment -> image+label NIfTI
-2. `split_muscle.py` — split breasts, add contoured muscle + skin shell
-3. `dielectric_methods.py` — "ours" piecewise-linear Cole-Cole mapping; TWO versions: ours_segmentation, ours_gmm
-4. `compare_dielectric.py` — seg-vs-gmm comparison plots
-`full_pipeline.py` orchestrates everything.
 
 
 ## Run
