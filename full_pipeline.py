@@ -34,7 +34,7 @@ import dielectric_methods as dm
 import compare_dielectric as cmp
 import split_muscle as sm
 
-FREQS = [0.5, 0.75, 1.0, 2.0, 3.0]
+FREQS = [3.0]
 ADD_SKIN = True
 SKIN_THICKNESS_MM = 1.5
 TUMOR_PERCENTILE = True
