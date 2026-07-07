@@ -14,7 +14,7 @@ Per patient, in order:
 
 PERFORMANCE: the intensity breakpoints + sub-tissue bands are FREQUENCY-INDEPENDENT, so
 they (and the GMM) are computed ONCE per source via dm.prepare_breaks() and reused across
-all frequencies.  Skylar removed; only "ours" remains.
+all frequencies.
 
 Usage:
     python full_pipeline.py --patient Breast_MRI_001 --mama-patient DUKE_001
