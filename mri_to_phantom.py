@@ -216,9 +216,9 @@ def _get_predictor():
                             perform_everything_on_device=torch.cuda.is_available(),
                             device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
                             verbose=False, allow_tqdm=True)
-        # folds = tuple(range(len([d for d in NNUNET_MODEL_DIR.iterdir()
-                                #  if d.name.startswith("fold_")])))
-        folds = (0,)      # single fold — avoids the CPU accumulate bug, ~5x faster on CPU
+        folds = tuple(range(len([d for d in NNUNET_MODEL_DIR.iterdir()
+                                if d.name.startswith("fold_")])))
+        # folds = (0,)      # single fold — avoids the CPU accumulate bug, ~5x faster on CPU
         p.initialize_from_trained_model_folder(str(NNUNET_MODEL_DIR), use_folds=folds,
                                                checkpoint_name="checkpoint_final.pth")
         _PREDICTOR = p
@@ -425,7 +425,7 @@ def main():
 
     # 7. Label map
     label_full = build_label_map(breast_full, dv_full, tumor_final, args.fgt_threshold)
-    label_full[label_full == 3] = 2 # consider tumor as fgt for test!
+    # label_full[label_full == 3] = 2 # consider tumor as fgt for test!
     print(f"\n  Label summary:")
     print(f"    Background:   {(label_full==0).sum()}")
     print(f"    Fatty tissue: {(label_full==1).sum()}")
