@@ -34,7 +34,7 @@ import dielectric_methods as dm
 import compare_dielectric as cmp
 import split_muscle as sm
 
-FREQS = [0.5, 0.75, 1.0, 2.0, 3.0]
+FREQS = [1.0]
 ADD_SKIN = True
 SKIN_THICKNESS_MM = 1.5
 TUMOR_PERCENTILE = True
@@ -54,8 +54,8 @@ def run_segmentation(patient, mama_patient, out_dir):
 
 def load_saved(patient, out_dir):
     pdir = out_dir / patient
-    img = nib.load(str(pdir / f"{patient}_image.nii.gz"))
-    lab = nib.load(str(pdir / f"{patient}_label.nii.gz"))
+    img = nib.load(str(pdir / f"{patient}_image_without_tumor.nii.gz"))
+    lab = nib.load(str(pdir / f"{patient}_label_without_tumor.nii.gz"))
     return img.get_fdata().astype(np.float32), lab.get_fdata().astype(np.uint8), img.affine
 
 # =====================================================================
@@ -63,8 +63,8 @@ def load_saved(patient, out_dir):
 # =====================================================================
 def split_and_add_muscle(patient, out_dir):
     pdir = out_dir / patient
-    img, pd  = sm.read_nii_gz(pdir / f"{patient}_image.nii.gz")
-    label, _ = sm.read_nii_gz(pdir / f"{patient}_label.nii.gz")
+    img, pd  = sm.read_nii_gz(pdir / f"{patient}_image_without_tumor.nii.gz")
+    label, _ = sm.read_nii_gz(pdir / f"{patient}_label_without_tumor.nii.gz")
     label = label.astype(np.uint8); img = img.astype(np.float32)
 
     spacing_zyx = (float(pd[3]), float(pd[2]), float(pd[1]))
@@ -104,8 +104,8 @@ def process_breast(breast, patient, out_dir):
     spacing = breast.get("spacing", (1.0,1.0,1.0))
     bdir = out_dir / patient / name; bdir.mkdir(parents=True, exist_ok=True)
     aff = np.diag([spacing[0], spacing[1], spacing[2], 1.0])
-    nib.Nifti1Image(vol.astype(np.float32), aff).to_filename(bdir/f"{name}_image.nii.gz")
-    nib.Nifti1Image(label, aff).to_filename(bdir/f"{name}_label.nii.gz")
+    nib.Nifti1Image(vol.astype(np.float32), aff).to_filename(bdir/f"{name}_image_without_tumor.nii.gz")
+    nib.Nifti1Image(label, aff).to_filename(bdir/f"{name}_label_without_tumor.nii.gz")
 
     # ---- compute breakpoints + bands ONCE per source (the expensive GMM runs once) ----
     prep = dm.prepare_breaks(vol, label, sources=("seg","gmm"))
@@ -120,8 +120,18 @@ def process_breast(breast, patient, out_dir):
             er, ei = dm.assign_muscle(er, ei, label, f)
             if ADD_SKIN: dm.assign_skin(er, ei, label, f, vol=vol)
             results[vname] = (er, ei)
-            nib.Nifti1Image(er, aff).to_filename(bdir/f"{name}_{vname}_real_{f:g}GHz.nii.gz")
-            nib.Nifti1Image(ei, aff).to_filename(bdir/f"{name}_{vname}_imag_{f:g}GHz.nii.gz")
+
+            # === ADD THE DIAGNOSTIC CODE HERE ===
+            print(f"  === {name} @ {f:g} GHz ===")
+            print(f"    er:  min={er.min():.3f}  max={er.max():.3f}  nan={np.isnan(er).sum()}")
+            print(f"    ei:  min={ei.min():.3f}  max={ei.max():.3f}  nan={np.isnan(ei).sum()}")
+            print(f"    Negative ei: {(ei < 0).sum()}")
+            
+            if np.any(ei < 0):
+                print("    !!! NEGATIVE IMAGINARY PART DETECTED !!!")
+
+            nib.Nifti1Image(er, aff).to_filename(bdir/f"{name}_{vname}_real_without_tumor_{f:g}GHz.nii.gz")
+            nib.Nifti1Image(ei, aff).to_filename(bdir/f"{name}_{vname}_imag_without_tumor_{f:g}GHz.nii.gz")
         results["subt_seg"] = prep["seg"]["subt"]
         results["subt_gmm"] = prep["gmm"]["subt"]
         per_freq[f] = results
@@ -162,8 +172,8 @@ def main():
     for f in FREQS:
         bdata = [dict(name=b["name"], label=b["label"], results=b["results"][f]) for b in breasts]
         cmp.two_version_maps(bdata, f, pdir/f"{args.patient}_maps_2version_{f:g}GHz.png")
-        cmp.two_version_distributions(bdata, f, pdir/f"{args.patient}_dist_real_2version_{f:g}GHz.png", part="real")
-        cmp.two_version_distributions(bdata, f, pdir/f"{args.patient}_dist_imag_2version_{f:g}GHz.png", part="imag")
+        cmp.two_version_distributions(bdata, f, pdir/f"{args.patient}_dist_real_without_tumor_{f:g}GHz.png", part="real")
+        cmp.two_version_distributions(bdata, f, pdir/f"{args.patient}_dist_imag_without_tumor_{f:g}GHz.png", part="imag")
         print(f"   2-version plots @ {f} GHz saved")
 
     print(f"\n✅ DONE. Everything under {out_dir/args.patient}/")
