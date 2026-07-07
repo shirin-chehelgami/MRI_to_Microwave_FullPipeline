@@ -27,6 +27,9 @@ DUKE_DATA_ROOT = SCRIPT_DIR / "data" / "Duke-Breast-Cancer-MRI"
 MAMA_ROOT = SCRIPT_DIR / "data" / "mamamia_duke"
 DEFAULT_OUT = SCRIPT_DIR / "outputs"
 
+NNUNET_MODEL_DIR = SCRIPT_DIR / "mamamia_weights" / "nnUNet_results" / "full_image_dce_mri_tumor_segmentation"
+_PREDICTOR = None  # lazy-loaded MAMA-MIA nnU-Net (only built if an expert seg is missing)
+
 # =========================================================
 # PREPROCESSING
 # =========================================================
@@ -172,6 +175,80 @@ def reorient_to_ras(volume, affine):
     print(f"  Reorienting DICOM from {cur} to RAS")
     transform = ornt_transform(io_orientation(affine), axcodes2ornt('RAS'))
     return apply_orientation(volume, transform)
+
+
+
+
+
+def find_first_postcontrast_series(study_dir):
+    """First POST-contrast series = model input (DUKE '1st pass', ISPY2 'Ph1'/601)."""
+    def score(d):
+        n = d.name.lower()
+        if "1st pass" in n or "ph1" in n: return 0
+        if "pass" in n or "ph" in n:      return 1
+        if "pre" in n:                    return 9
+        return 5
+    cand = [d for d in study_dir.iterdir() if d.is_dir()
+            and any(k in d.name.lower() for k in ("pass", "ph", "dyn", "vibrant"))]
+    if not cand:
+        cand = [d for d in study_dir.iterdir() if d.is_dir()]
+    best = sorted(cand, key=score)[0]
+    print(f"  Model input series: {best.name!r}")
+    return best
+
+def _load_series_array(series_dir):
+    dcm = sorted(series_dir.glob("*.dcm"))
+    sl = sorted([pydicom.dcmread(f) for f in dcm], key=lambda x: float(x.ImagePositionPatient[2]))
+    first = sl[0]
+    vol = np.zeros((int(first.Rows), int(first.Columns), len(sl)), np.float32)
+    for i, ds in enumerate(sl):
+        vol[:, :, i] = ds.pixel_array
+    return vol, first
+
+def _get_predictor():
+    global _PREDICTOR
+    if _PREDICTOR is None:
+        import torch
+        _ol = torch.load
+        torch.load = lambda *a, **k: _ol(*a, **{**k, "weights_only": False})
+        from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
+        p = nnUNetPredictor(tile_step_size=0.5, use_gaussian=True, use_mirroring=True,
+                            perform_everything_on_device=torch.cuda.is_available(),
+                            device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+                            verbose=False, allow_tqdm=True)
+        # folds = tuple(range(len([d for d in NNUNET_MODEL_DIR.iterdir()
+                                #  if d.name.startswith("fold_")])))
+        folds = (0,)      # single fold — avoids the CPU accumulate bug, ~5x faster on CPU
+        p.initialize_from_trained_model_folder(str(NNUNET_MODEL_DIR), use_folds=folds,
+                                               checkpoint_name="checkpoint_final.pth")
+        _PREDICTOR = p
+    return _PREDICTOR
+
+def segment_tumor_with_model(patient_id, img_ras, dicom_aff):
+    """Run MAMA-MIA nnU-Net on the RAW first post-contrast DICOM series; return tumor on RAS grid."""
+    import tempfile, shutil
+    patient_dir = DUKE_DATA_ROOT / patient_id
+    study_dirs = [d for d in patient_dir.iterdir() if d.is_dir()
+                  and "MRI BREAST" in d.name.upper()] or list(patient_dir.iterdir())
+    post_dir = find_first_postcontrast_series(study_dirs[0])
+    post_native, _ = _load_series_array(post_dir)
+    tmp = tempfile.mkdtemp()
+    try:
+        inp = f"{tmp}/{patient_id}_0000.nii.gz"
+        nib.Nifti1Image(post_native, dicom_aff).to_filename(inp)
+        out = f"{tmp}/{patient_id}.nii.gz"
+        _get_predictor().predict_from_files([[inp]], [out], save_probabilities=False,
+                                            overwrite=True, num_processes_preprocessing=2,
+                                            num_processes_segmentation_export=2)
+        tum_can = nib.as_closest_canonical(nib.load(out))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    tumor_ras = (tum_can.get_fdata() > 0.5).astype(np.uint8)
+    assert tumor_ras.shape == img_ras.shape, f"tumor {tumor_ras.shape} != img_ras {img_ras.shape}"
+    print(f"  Model tumor voxels (RAS): {int(tumor_ras.sum())}")
+    return tumor_ras
+
+
 
 # =========================================================
 # TUMOR ALIGNMENT — matched against the RAS volume
@@ -343,11 +420,12 @@ def main():
         if tumor_path.exists():
             tumor_final = align_tumor_to_ras(tumor_path, img_ras, mama_img_path)
         else:
-            print(f"  WARNING: tumor not found at {tumor_path}")
-            tumor_final = np.zeros_like(img_ras, dtype=np.uint8)
+            print(f"  No expert seg -> segmenting tumor with MAMA-MIA nnU-Net")
+            tumor_final = segment_tumor_with_model(args.patient, img_ras, dicom_aff)
 
     # 7. Label map
     label_full = build_label_map(breast_full, dv_full, tumor_final, args.fgt_threshold)
+    label_full[label_full == 3] = 2 # consider tumor as fgt for test!
     print(f"\n  Label summary:")
     print(f"    Background:   {(label_full==0).sum()}")
     print(f"    Fatty tissue: {(label_full==1).sum()}")
@@ -359,8 +437,8 @@ def main():
         po = out_dir / args.patient; po.mkdir(parents=True, exist_ok=True)
         # RAS affine from reoriented canonical image (keeps spacing + RAS directions)
         ras_affine = nib.as_closest_canonical(nib.Nifti1Image(img_native, dicom_aff)).affine
-        nib.Nifti1Image(img_full.astype(np.float32), ras_affine).to_filename(po / f"{args.patient}_image.nii.gz")
-        nib.Nifti1Image(label_full.astype(np.uint8), ras_affine).to_filename(po / f"{args.patient}_label.nii.gz")
+        nib.Nifti1Image(img_full.astype(np.float32), ras_affine).to_filename(po / f"{args.patient}_image_without_tumor.nii.gz")
+        nib.Nifti1Image(label_full.astype(np.uint8), ras_affine).to_filename(po / f"{args.patient}_label_without_tumor.nii.gz")
         print(f"✅ Saved to: {po}")
 
     # 9. Plot
