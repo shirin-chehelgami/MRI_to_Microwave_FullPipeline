@@ -1,0 +1,9 @@
+numpy
+nibabel
+matplotlib
+torch
+torchio
+scipy
+tqdm
+pydicom
+SimpleITK
