@@ -1,0 +1,22 @@
+1. Downloaded the weights from Synapse (entity syn61247992) using the synapse Python client:
+
+
+# Python
+import synapseclient
+syn = synapseclient.login(authToken="YOUR_TOKEN")
+syn.get("syn61247992", downloadLocation="./mamamia_weights", ...)
+
+
+That gave you full_image_dce_mri_tumor_segmentation.zip (1.18 GB), which you unzipped to:
+
+# bash
+mamamia_weights/nnUNet_results/full_image_dce_mri_tumor_segmentation/
+   fold_0 … fold_4/checkpoint_final.pth, plans.json, dataset.json
+
+2. Cloned the nnU-Net fork so you could run the model:
+
+# bash
+git clone https://github.com/LidiaGarrucho/nnUNet
+python -m pip install -e ./nnUNet
+
+
