@@ -6,9 +6,6 @@ are estimated:
     ours_segmentation : mu/sigma from labelled fat & fibro voxels
     ours_gmm          : mu/sigma from a 2-component GMM on the breast interior
 
-PERFORMANCE: the 8 intensity breakpoints (and the GMM) depend only on (vol, label, source)
-— NOT on frequency or version — so they are computed ONCE per source and reused across all
-frequencies via `prepare_breaks()`.  (The old 4-way code refit the GMM ~12x per breast.)
 """
 import numpy as np
 from sklearn.mixture import GaussianMixture
@@ -30,6 +27,10 @@ COLE_CURVES = {
 
 # Pelicano Table 3/4 single-pole Debye (eps_inf, delta_eps, tau_ps, sigma)
 MALIGNANT_DEBYE = {"p25": (12.9, 33.9, 13.0, 1.38), "p75": (14.6, 47.2, 13.0, 1.60)}
+# Lazebnik 2007 Table 4 — malignant tumor 1-pole Cole-Cole (eps_inf, d_eps, tau_ps, alpha, sigma)
+# valid 0.5-20 GHz (replaces the 3-10 GHz Pelicano Debye)
+MALIGNANT_COLE = {"p25": (7.670, 43.92, 10.70, 0.028, 0.748), "p75": (9.058, 51.31, 10.84, 0.022, 0.899)}
+
 SKIN_DEBYE   = (15.93, 23.83, 13.0, 0.831)
 MUSCLE_DEBYE = (21.66, 33.24, 13.0, 0.886)
 
@@ -165,8 +166,8 @@ def assign_tumor_percentile(er, ei, label, vol, freq_ghz):
     m = label==TUMOR
     if m.sum()==0: return er, ei
     f=freq_ghz*GHZ
-    er_lo,ei_lo = _debye_eval2(f, MALIGNANT_DEBYE["p25"])
-    er_hi,ei_hi = _debye_eval2(f, MALIGNANT_DEBYE["p75"])
+    er_lo,ei_lo = _cole_eval (f, MALIGNANT_COLE["p25"])
+    er_hi,ei_hi = _cole_eval (f, MALIGNANT_COLE["p75"])
     I = vol[m]
     rank = (I-I.min())/(np.ptp(I)+1e-8) if I.size else np.zeros(m.sum())
     er[m] = er_lo + rank*(er_hi-er_lo)
