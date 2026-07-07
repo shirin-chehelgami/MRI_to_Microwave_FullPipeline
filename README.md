@@ -25,40 +25,23 @@ This pipeline processes Duke breast MRI datasets through two main stages:
       MRI_To_Microwave_Breast_Data/
       ├── mri_to_phantom.py # DICOM -> RAS -> preprocess -> Duke breast/FGT segmentation + tumour alignment -> image+label NIfTI
       ├── full_pipeline.py
-      
       ├── compare_dielectric.py # seg-vs-gmm comparison plots
-      
       ├── dielectric_methods.py # "ours" piecewise-linear Cole-Cole mapping; TWO versions: ours_segmentation, ours_gmm
-      
       ├── split_muscle.py # split breasts, add contoured muscle + skin shell
-      
       ├── preprocessing.py # z-score + SWITCHING median (cross footprint, k=3): edge-preserving impulse removal
-      
       ├── nii_to_chamber.py # create voxel file for Forward Solver
-      
       ├── 3D-Breast-FGT-and-Blood-Vessel-Segmentation-main/ # Duke's models for breast and FGT segmentation
-      
       ├── data/
-      
       │ ├── mamamia_duke/ # MAMA-MIA duke dataset (tumor masks)
-      
       │ │ ├── images/
-      
       │ │ └── segmentations/
-      
       │ ├── Duke-Breast-Cancer-MRI/ # Original duke dataset
-      
       │── Breast_MRI_001/
-      
       ├── Breast_MRI_002/
-      
       └── ...
       └── outputs/ # All results saved here
-      
       ├── Breast_MRI_001/
-      
       ├── Breast_MRI_002/
-      
       └── ...
 
 
