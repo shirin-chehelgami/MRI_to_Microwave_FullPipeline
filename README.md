@@ -92,8 +92,8 @@ The repository includes **10 sample patients** already in `data/Duke-Breast-Canc
 
 ## Run
 
-    python full_pipeline.py --patient Breast_MRI_001 --muscle-thickness-mm 0
-    python full_pipeline.py --patient Breast_MRI_001 --skip-segmentation --muscle-thickness-mm 0
+    python full_pipeline.py --patient Breast_MRI_001 --muscle-thickness-mm 10
+    python full_pipeline.py --patient Breast_MRI_001 --skip-segmentation --muscle-thickness-mm 10
 
 * Change FREQS = [3.0] in full_pipeline.py for more frequencies
 
