@@ -2,7 +2,7 @@ markdown
 
 # MRI to Microwave Breast Data Processing Pipeline
 
-A complete pipeline for breast MRI segmentation and dielectric property conversion for microwave imaging applications.
+A complete pipeline for breast MRI segmentation and conversion of tissue labels to dielectric properties for microwave imaging applications.
 
 ## Overview
 
@@ -108,10 +108,10 @@ The repository includes **10 sample patients** already in `data/Duke-Breast-Canc
 
 
     
-This will save a csv file with information needed for forward solver.
+This will save a CSV file containing the information required by the forward solver.
 
 
-Then put the gen_configs file in your GmshFEMInterface folder and run it using:
+Next, place gen_configs.py in your GmshFEMInterface folder and run it using:
 
 
     python3 gen_configs.py --batch                     # all patients, all breasts, all freqs
@@ -121,9 +121,10 @@ Then put the gen_configs file in your GmshFEMInterface folder and run it using:
     python3 gen_configs.py --patient 001 --freq 0.5:3.0:0.01
 
 
-This will create a config folder with one config file for each breast and freqs.
+This will create a configs folder containing one configuration file for each breast and frequency.
 
-Replace the toml and julia files in your forward solver folder with these new ones (ExampleFD3DThinWire_batch.jl ExampleFD3DThinWire_batch.toml) and run the forward solver using:
+
+Replace the existing TOML and Julia files in your forward solver directory with the newly generated ones (ExampleFD3DThinWire_batch.toml and ExampleFD3DThinWire_batch.jl), then run the forward solver using:
 
 
 One patient, both breasts, all its frequencies defined before:
