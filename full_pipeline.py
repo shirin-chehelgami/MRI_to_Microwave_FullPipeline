@@ -12,7 +12,14 @@ In order:
   4. Comparison plots (seg vs gmm)
   5. Save everything under outputs/<patient>/
 
+<<<<<<< HEAD
  
+=======
+PERFORMANCE: the intensity breakpoints + sub-tissue bands are FREQUENCY-INDEPENDENT, so
+they (and the GMM) are computed ONCE per source via dm.prepare_breaks() and reused across
+all frequencies.
+
+>>>>>>> 95a62d9278519d9f9f3cfd30ad3bb5ac86b4f789
 Usage:
     python full_pipeline.py --patient 001 --mama-patient DUKE_001
     python full_pipeline.py --batch
@@ -39,10 +46,17 @@ N4_FEATHER_MM = 30.0    # edge mode only
 import dielectric_methods as dm
 import compare_dielectric as cmp
 import split_muscle as sm
+<<<<<<< HEAD
  
 # default frequency sweep (used when --freq is not given)
 FREQS = np.arange(0.5, 3.0, 0.01)
  
+=======
+
+
+FREQS = [1.0]
+
+>>>>>>> 95a62d9278519d9f9f3cfd30ad3bb5ac86b4f789
 ADD_SKIN = True
 SKIN_THICKNESS_MM = 2.0
 TUMOR_PERCENTILE = True

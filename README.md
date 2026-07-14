@@ -10,7 +10,7 @@ This pipeline processes Duke breast MRI datasets through two main stages:
 1. **Segmentation** - Uses Duke's pre-trained models to segment breast tissue (fat and FGT/fibroglandular tissue)
    
          Lew CO, Harouni M, Kirksey ER, Kang EJ, Dong H, Gu H, Grimm LJ, Walsh R, Lowell DA, Mazurowski MA. A publicly available deep learning model and dataset for segmentation of breast, fibroglandular tissue, and vessels in breast MRI. Sci Rep. 2024 Mar 5;14(1):5383. doi: 10.1038/s41598-024-54048-2. PMID: 38443410; PMCID: PMC10915139.
-3. **Tumor Segmentation** - Uses Mamamia expert's tumor segmentation
+3. **Tumor Segmentation** - Uses Mamamia expert's tumor segmentation / Mamamia pretrained model for tumor segmentation in case the expert segmentation is not available (See nnUnet Installation)
 
 
          Garrucho, L., Kushibar, K., Reidel, CA. et al. A large-scale multicenter breast cancer DCE-MRI benchmark dataset with expert segmentations. Sci Data 12, 453 (2025). https://doi.org/10.1038/s41597-025-04707-4
@@ -21,47 +21,29 @@ This pipeline processes Duke breast MRI datasets through two main stages:
 
 ## Repository Structure
 
-MRI_To_Microwave_Breast_Data/
 
-├── mri_to_phantom.py # DICOM -> RAS -> preprocess -> Duke breast/FGT segmentation + tumour alignment -> image+label NIfTI
+      MRI_To_Microwave_Breast_Data/
+      ├── mri_to_phantom.py # DICOM -> RAS -> preprocess -> Duke breast/FGT segmentation + tumour alignment -> image+label NIfTI
+      ├── full_pipeline.py
+      ├── compare_dielectric.py # seg-vs-gmm comparison plots
+      ├── dielectric_methods.py # "ours" piecewise-linear Cole-Cole mapping; TWO versions: ours_segmentation, ours_gmm
+      ├── split_muscle.py # split breasts, add contoured muscle + skin shell
+      ├── preprocessing.py # z-score + SWITCHING median (cross footprint, k=3): edge-preserving impulse removal
+      ├── nii_to_chamber.py # create voxel file for Forward Solver
+      ├── 3D-Breast-FGT-and-Blood-Vessel-Segmentation-main/ # Duke's models for breast and FGT segmentation
+      ├── data/
+      │ ├── mamamia_duke/ # MAMA-MIA duke dataset (tumor masks)
+      │ │ ├── images/
+      │ │ └── segmentations/
+      │ ├── Duke-Breast-Cancer-MRI/ # Original duke dataset
+      │── Breast_MRI_001/
+      ├── Breast_MRI_002/
+      └── ...
+      └── outputs/ # All results saved here
+      ├── Breast_MRI_001/
+      ├── Breast_MRI_002/
+      └── ...
 
-├── full_pipeline.py
-
-├── compare_dielectric.py # seg-vs-gmm comparison plots
-
-├── dielectric_methods.py # "ours" piecewise-linear Cole-Cole mapping; TWO versions: ours_segmentation, ours_gmm
-
-├── split_muscle.py # split breasts, add contoured muscle + skin shell
-
-├── preprocessing.py # z-score + SWITCHING median (cross footprint, k=3): edge-preserving impulse removal
-
-├── nii_to_chamber.py # create voxel file for Forward Solver
-
-├── 3D-Breast-FGT-and-Blood-Vessel-Segmentation-main/ # Duke's models for breast and FGT segmentation
-
-├── data/
-
-│ ├── mamamia_duke/ # MAMA-MIA duke dataset (tumor masks)
-
-│ │ ├── images/
-
-│ │ └── segmentations/
-
-│ ├── Duke-Breast-Cancer-MRI/ # Original duke dataset
-
-│── Breast_MRI_001/
-
-├── Breast_MRI_002/
-
-└── ...
-└── outputs/ # All results saved here
-
-├── Breast_MRI_001/
-
-├── Breast_MRI_002/
-
-└── ...
-text
 
 
 ## Prerequisites
@@ -110,8 +92,8 @@ The repository includes **10 sample patients** already in `data/Duke-Breast-Canc
 
 ## Run
 
-    python full_pipeline.py --patient Breast_MRI_001 --muscle-thickness-mm 0
-    python full_pipeline.py --patient Breast_MRI_001 --skip-segmentation --muscle-thickness-mm 0
+    python full_pipeline.py --patient Breast_MRI_001 --muscle-thickness-mm 10
+    python full_pipeline.py --patient Breast_MRI_001 --skip-segmentation --muscle-thickness-mm 10
 
 * Change FREQS = [3.0] in full_pipeline.py for more frequencies
 
