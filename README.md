@@ -56,7 +56,7 @@ This pipeline processes Duke breast MRI datasets through two main stages:
 ### 1. Clone the repository
 ```bash
 git clone https://github.com/yourusername/MRI_To_Microwave_FullPipeline.git
-cd MRI_To_Microwave_Breast_Data
+cd MRI_To_Microwave_FullPipeline
 ```
 
 ### 2. Install Dependencies
@@ -92,12 +92,71 @@ The repository includes **10 sample patients** already in `data/Duke-Breast-Canc
 
 ## Run
 
-    python full_pipeline.py --patient Breast_MRI_001 --muscle-thickness-mm 10
-    python full_pipeline.py --patient Breast_MRI_001 --skip-segmentation --muscle-thickness-mm 10
 
-* Change FREQS = [3.0] in full_pipeline.py for more frequencies
+    python full_pipeline.py --patient 001 --breast 1 --versions seg --freq 0.5:3.0:0.01   # all patients, all breasts, breast1, defined freqs
+    python full_pipeline.py --batch --versions seg --freq 1.0      # one patient, both breasts, 1GHz
+
 
 
 ## Run
-    python nii_to_chamber.py ./outputs/Breast_MRI_001/breast1/breast1_label.nii.gz   ./outputs/Breast_MRI_001/breast1/breast1_ours_segmentation_real_3GHz.nii.gz ./outputs/Breast_MRI_001/breast1/breast1_ours_segmentation_imag_3GHz.nii.gz ./outputs/Breast_MRI_001/breast1/breast1_in_chamber.mat
+
+
+
+
+    python nii_to_chamber.py --batch ./outputs      # all patients, all breasts, all freqs
+    python nii_to_chamber.py --batch ./outputs --patient 001 --freq 0.5:3.0:0.01      # one patient, defined freqs
+
+
+    
+This will save a csv file with information needed for forward solver.
+
+
+Then put the gen_configs file in your GmshFEMInterface folder and run it using:
+
+
+    python3 gen_configs.py --batch                     # all patients, all breasts, all freqs
+    python3 gen_configs.py --patient 001               # one patient
+    python3 gen_configs.py --patient 001 002 --breast 1
+    python3 gen_configs.py --patient 001 --freq 1.0 1.3
+    python3 gen_configs.py --patient 001 --freq 0.5:3.0:0.01
+
+
+This will create a config folder with one config file for each breast and freqs.
+
+Replace the toml and julia files in your forward solver folder with these new ones (ExampleFD3DThinWire_batch.jl ExampleFD3DThinWire_batch.toml) and run the forward solver using:
+
+
+One patient, both breasts, all its frequencies defined before:
+ 
+bash
+
+      for cfg in ./configs/Breast_MRI_001/breast*/config_*.toml; do     echo ">>> $cfg"     julia --project=@EIL ./examples/ExampleFD3DThinWire/ExampleFD3DThinWire.jl "$cfg" done
+      Change 001 → 002 for the other subject.
+      One specific breast:
+
+
+One specific breast:
+
+bash
+
+      for cfg in ./configs/Breast_MRI_001/breast1/config_*.toml; do     julia --project=@EIL ./examples/ExampleFD3DThinWire/ExampleFD3DThinWire.jl "$cfg" done
+      One breast, one frequency (no loop needed):
+
+One breast, one frequency (no loop needed):
+
+bash
+
+      julia --project=@EIL ./examples/ExampleFD3DThinWire/ExampleFD3DThinWire.jl \     ./configs/Breast_MRI_001/breast1/config_1GHz.toml
+
+      
+Everything (all patients):
+ 
+bash
+
+      for cfg in ./configs/Breast_MRI_*/breast*/config_*.toml; do     julia --project=@EIL ./examples/ExampleFD3DThinWire/ExampleFD3DThinWire.jl "$cfg" done
+
+ 
+ 
+
+
 
