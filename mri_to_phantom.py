@@ -216,9 +216,9 @@ def _get_predictor():
                             perform_everything_on_device=torch.cuda.is_available(),
                             device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
                             verbose=False, allow_tqdm=True)
-        # folds = tuple(range(len([d for d in NNUNET_MODEL_DIR.iterdir()
-                                #  if d.name.startswith("fold_")])))
-        folds = (0,)      # single fold — avoids the CPU accumulate bug, ~5x faster on CPU
+        folds = tuple(range(len([d for d in NNUNET_MODEL_DIR.iterdir()
+                                 if d.name.startswith("fold_")])))
+        # folds = (0,)      # single fold — avoids the CPU accumulate bug, ~5x faster on CPU
         p.initialize_from_trained_model_folder(str(NNUNET_MODEL_DIR), use_folds=folds,
                                                checkpoint_name="checkpoint_final.pth")
         _PREDICTOR = p
@@ -239,8 +239,9 @@ def segment_tumor_with_model(patient_id, img_ras, dicom_aff):
         out = f"{tmp}/{patient_id}.nii.gz"
         _get_predictor().predict_from_files([[inp]], [out], save_probabilities=False,
                                             overwrite=True, num_processes_preprocessing=2,
-                                            num_processes_segmentation_export=2)
+                                            num_processes_segmentation_export=1)
         tum_can = nib.as_closest_canonical(nib.load(out))
+        tum_can = nib.Nifti1Image(np.asarray(tum_can.get_fdata()), tum_can.affine, tum_can.header)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     tumor_ras = (tum_can.get_fdata() > 0.5).astype(np.uint8)
@@ -406,10 +407,10 @@ def main():
     breast_model, dv_model = load_duke_models(str(DUKE_REPO), device)
 
     # 5. Breast + FGT segmentation (on RAS image)
-    prob_full   = predict_breast_prob(img_full, breast_model, device)
+    prob_full   = predict_breast_prob(img_ras, breast_model, device)
     breast_full = (prob_full > args.breast_threshold).astype(np.uint8)
     print(f"  Breast voxels: {breast_full.sum()}")
-    dv_full = predict_fgt_argmax(img_full, prob_full, dv_model, device, return_probs=True)
+    dv_full = predict_fgt_argmax(img_ras, prob_full, dv_model, device, return_probs=True)
 
     # 6. Tumor — aligned to the RAS volume
     if args.no_tumor:
@@ -425,7 +426,7 @@ def main():
 
     # 7. Label map
     label_full = build_label_map(breast_full, dv_full, tumor_final, args.fgt_threshold)
-    label_full[label_full == 3] = 2 # consider tumor as fgt for test!
+    # label_full[label_full == 3] = 2 # consider tumor as fgt for test!
     print(f"\n  Label summary:")
     print(f"    Background:   {(label_full==0).sum()}")
     print(f"    Fatty tissue: {(label_full==1).sum()}")
@@ -437,8 +438,8 @@ def main():
         po = out_dir / args.patient; po.mkdir(parents=True, exist_ok=True)
         # RAS affine from reoriented canonical image (keeps spacing + RAS directions)
         ras_affine = nib.as_closest_canonical(nib.Nifti1Image(img_native, dicom_aff)).affine
-        nib.Nifti1Image(img_full.astype(np.float32), ras_affine).to_filename(po / f"{args.patient}_image_without_tumor.nii.gz")
-        nib.Nifti1Image(label_full.astype(np.uint8), ras_affine).to_filename(po / f"{args.patient}_label_without_tumor.nii.gz")
+        nib.Nifti1Image(img_full.astype(np.float32), ras_affine).to_filename(po / f"{args.patient}_image.nii.gz")
+        nib.Nifti1Image(label_full.astype(np.uint8), ras_affine).to_filename(po / f"{args.patient}_label.nii.gz")
         print(f"✅ Saved to: {po}")
 
     # 9. Plot

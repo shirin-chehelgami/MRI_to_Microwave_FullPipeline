@@ -1,17 +1,25 @@
 #!/usr/bin/env python3
 """
 nii_to_chamber.py
-Breast (label + eps'/eps'' NIfTI) -> CHAMBER voxel file (synthetic_blue_ball.mat format).
+Breast (label + eps'/eps'' NIfTI) -> CHAMBER voxel file
 
-AXIS ORDER = "z, x, y" (as specified):
+AXIS ORDER = "z, x, y":
    axis 0 = chest-depth   (the cup axis; blue line/rim at index D0, mound hangs to lower indices)
    axis 1 = lateral
    axis 2 = sup-inf
 All tissue kept (fat,fibro,tumor,muscle,skin). Mound below the rim (into cup),
 chest wall above the rim. Centred on axis1 = axis2 = 0.
 
-Usage:
+BATCH usage:
+    python nii_to_chamber.py --batch ./outputs
+    python nii_to_chamber.py --batch ./outputs --patient 001
+    python nii_to_chamber.py --batch ./outputs --patient 001 002 --breast 1
+    python nii_to_chamber.py --batch ./outputs --patient 001 --freq 1.0 1.3
+    python nii_to_chamber.py --batch ./outputs --patient 001 --freq 0.5:3.0:0.01
+ 
+SINGLE usage:
     python nii_to_chamber.py label.nii.gz real.nii.gz imag.nii.gz out.mat [out.png]
+
 """
 import sys, numpy as np, nibabel as nib
 from scipy.ndimage import label as cc_label, binary_fill_holes, zoom, sum as ndsum
@@ -99,11 +107,12 @@ def make_chamber(label_path, real_path, imag_path, out_mat,
         seg=src[l0-offL:l1-offL, s0-offS:s1-offS]; m=(seg!=(1.0+0j))
         data[zi,l0:l1,s0:s1][m]=seg[m]
 
-    # origin: blue line (axis0=D0) at 0 ; lateral & supinf centred
+
     origin=np.array([[-(NS//2)*step, -(NL//2)*step, -D0*step]])  # reader order: [x(axis2), y(axis1), z(axis0=depth)]
     steps =np.array([[step,step,step]])
     savemat(out_mat,{"data":data,"origin":origin,"steps":steps})
-    return data,origin[0],step,D0,NL,NS,ND
+    return data,origin[0],step,D0,NL,NS,ND,below,abs(end-vL)
+
 
 def plot_chamber(data,origin,step,D0,NL,NS,out_png):
     import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
@@ -124,11 +133,92 @@ def plot_chamber(data,origin,step,D0,NL,NS,out_png):
     ax.set_title('axis order z,x,y = (chest-depth, lateral, sup-inf)')
     plt.tight_layout(); plt.savefig(out_png,dpi=120,bbox_inches="tight"); plt.close()
 
+
+# ---- shared flag helpers (identical across all scripts) ----
+def parse_freqs(freq_args):
+    """None -> all/auto; 'a:b:s' -> arange; else explicit list. Returns set of 'g' strings or None."""
+    if not freq_args:
+        return None
+    if len(freq_args) == 1 and ":" in freq_args[0]:
+        a, b, s = (float(x) for x in freq_args[0].split(":"))
+        vals = np.arange(a, b, s)
+    else:
+        vals = np.array([float(x) for x in freq_args])
+    return { f"{v:g}" for v in vals }
+ 
+def norm_breast(b):
+    return b if str(b).startswith("breast") else f"breast{b}"
+ 
+
+
 if __name__=="__main__":
+    import glob, os, re as _re, argparse
     a=sys.argv
+ 
+    # ---- BATCH MODE ----
+    if len(a)>1 and a[1]=="--batch":
+        ap = argparse.ArgumentParser()
+        ap.add_argument("--batch", action="store_true")
+        ap.add_argument("root")                              # e.g. ./outputs
+        ap.add_argument("--patient", nargs="+", default=None)
+        ap.add_argument("--breast",  nargs="+", default=None)
+        ap.add_argument("--freq",    nargs="+", default=None)
+        args = ap.parse_args()
+ 
+        root = args.root
+        subj_globs = args.patient if args.patient else ["*"]
+        brst_globs = [norm_breast(b) for b in args.breast] if args.breast else ["breast*"]
+        freq_filter = parse_freqs(args.freq)                 # set of strings or None
+ 
+        # gather label files across all patient/breast globs
+        labels = []
+        for sg in subj_globs:
+            for bg in brst_globs:
+                labels += glob.glob(os.path.join(root, f"Breast_MRI_{sg}", bg, f"{bg}_label.nii.gz"))
+        labels = sorted(set(labels))
+        if not labels:
+            print("no matching *_label.nii.gz found"); sys.exit(1)
+ 
+        for label in labels:
+            d  = os.path.dirname(label)
+            bn = os.path.basename(label).replace("_label.nii.gz","")
+ 
+            # frequencies present for this breast (from filenames)
+            found=set()
+            for rf in glob.glob(os.path.join(d,f"{bn}_ours_segmentation_real_*GHz.nii.gz")):
+                m=_re.search(r"_real_(.+?)GHz\.nii\.gz$", os.path.basename(rf))
+                if m: found.add(m.group(1))
+            # apply --freq filter if given
+            if freq_filter is not None:
+                found &= freq_filter
+            these = sorted(found, key=float)
+            if not these:
+                print(f"!!! {bn}: no frequencies to process"); continue
+ 
+            wrote_dims=False
+            for f in these:
+                real=os.path.join(d,f"{bn}_ours_segmentation_real_{f}GHz.nii.gz")
+                imag=os.path.join(d,f"{bn}_ours_segmentation_imag_{f}GHz.nii.gz")
+                out =os.path.join(d,f"{bn}_in_chamber_{f}GHz.mat")
+                if not(os.path.isfile(real) and os.path.isfile(imag)):
+                    print(f"!!! skip {bn} @ {f}GHz (missing real/imag)"); continue
+                print(f">>> {bn} @ {f}GHz")
+                data,origin,step,D0,NL,NS,ND,depth_mm,diam_mm=make_chamber(label,real,imag,out)
+                # plot_chamber(data,origin,step,D0,NL,NS,out.rsplit(".",1)[0]+".png")
+ 
+                if not wrote_dims:
+                    csv_path=os.path.join(d,f"{bn}_dimensions.csv")
+                    with open(csv_path,"w") as fh:
+                        fh.write("breast,depth_mm,diameter_mm\n")
+                        fh.write(f"{bn},{depth_mm},{diam_mm}\n")
+                    print(f"    wrote {csv_path}")
+                    wrote_dims=True
+        sys.exit(0)
+ 
+    # ---- SINGLE MODE (original, unchanged) ----
     label,real,imag,out_mat=a[1],a[2],a[3],a[4]
     out_png=a[5] if len(a)>5 else out_mat.rsplit(".",1)[0]+".png"
-    data,origin,step,D0,NL,NS,ND=make_chamber(label,real,imag,out_mat)
+    data,origin,step,D0,NL,NS,ND,depth_mm,diam_mm=make_chamber(label,real,imag,out_mat)
     plot_chamber(data,origin,step,D0,NL,NS,out_png)
     re=data.real
     print("saved:",out_mat,"and",out_png)

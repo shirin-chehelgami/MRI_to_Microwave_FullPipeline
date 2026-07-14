@@ -86,3 +86,19 @@ def two_version_distributions(breasts_data, freq, out_path, part="real"):
     plt.suptitle(f"{xlab} distributions (KDE) by tissue — per version @ {freq} GHz",
                  fontweight='bold', fontsize=14)
     plt.tight_layout(); plt.savefig(out_path,dpi=120,bbox_inches='tight'); plt.close()
+
+
+
+def mri_vs_permittivity(vol_orig, vol_pre, er, out_png):
+    import matplotlib.pyplot as plt
+    import numpy as np
+    z = int(np.argmax((er > 1.5).sum(axis=(1, 2))))   # richest axial slice
+    fig, axes = plt.subplots(1, 3, figsize=(13, 5))
+    axes[0].imshow(vol_orig[z, :, :], cmap="gray", origin="lower")
+    axes[0].set_title(f"raw MRI z={z}"); axes[0].axis("off")
+    axes[1].imshow(vol_pre[z, :, :], cmap="gray", origin="lower")
+    axes[1].set_title("preprocessed (N4+median)"); axes[1].axis("off")
+    im = axes[2].imshow(er[z, :, :], cmap="jet", vmin=0, vmax=60, origin="lower")
+    axes[2].set_title("ε′"); axes[2].axis("off")
+    fig.colorbar(im, ax=axes[2], fraction=0.046)
+    plt.tight_layout(); plt.savefig(out_png, dpi=130, bbox_inches="tight"); plt.close()
