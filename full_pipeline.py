@@ -12,14 +12,7 @@ In order:
   4. Comparison plots (seg vs gmm)
   5. Save everything under outputs/<patient>/
 
-<<<<<<< HEAD
  
-=======
-PERFORMANCE: the intensity breakpoints + sub-tissue bands are FREQUENCY-INDEPENDENT, so
-they (and the GMM) are computed ONCE per source via dm.prepare_breaks() and reused across
-all frequencies.
-
->>>>>>> 95a62d9278519d9f9f3cfd30ad3bb5ac86b4f789
 Usage:
     python full_pipeline.py --patient 001 --mama-patient DUKE_001
     python full_pipeline.py --batch
@@ -39,24 +32,20 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
  
 import preprocessing as pp
-N4_MODE = "edge"          # None | "whole" | "edge"
+N4_MODE = "adge"          # None | "whole" | "edge"
 N4_FEATHER_MM = 30.0    # edge mode only
  
  
 import dielectric_methods as dm
 import compare_dielectric as cmp
 import split_muscle as sm
-<<<<<<< HEAD
+
+from scipy.ndimage import label as nd_label
+from scipy import ndimage
  
 # default frequency sweep (used when --freq is not given)
 FREQS = np.arange(0.5, 3.0, 0.01)
  
-=======
-
-
-FREQS = [1.0]
-
->>>>>>> 95a62d9278519d9f9f3cfd30ad3bb5ac86b4f789
 ADD_SKIN = True
 SKIN_THICKNESS_MM = 2.0
 TUMOR_PERCENTILE = True
@@ -119,7 +108,20 @@ def split_and_add_muscle(patient, out_dir):
     skin_vox = max(1, int(round(SKIN_THICKNESS_MM / skin_spacing)))
     print(f"   muscle {MUSCLE_THICKNESS_MM} mm -> {muscle_vox} vox; skin {SKIN_THICKNESS_MM} mm -> {skin_vox} vox")
  
+    # breast_mask = (label > 0)
+
     breast_mask = (label > 0)
+
+    # keep ONLY the largest connected component (drops arms, specks, anything detached)
+    _lb, _n = nd_label(breast_mask)
+    if _n > 1:
+        _sz = np.asarray(ndimage.sum(breast_mask, _lb, range(1, _n + 1)))
+        breast_mask = (_lb == 1 + int(np.argmax(_sz)))
+        label = np.where(breast_mask, label, 0).astype(np.uint8)
+        print(f"   components: {_n} -> kept largest "
+              f"({int(_sz.max()):,} vox, dropped {int(_sz.sum() - _sz.max()):,})")
+            
+            
     split_y, right_c, left_c, mid_x = sm.find_split_matlab_exact(breast_mask)
     b1_end, b2_start, valley = sm.find_inner_edges(breast_mask, right_c, left_c)
     mask_b1 = breast_mask.copy(); mask_b1[:, b2_start:, :] = False
@@ -134,7 +136,33 @@ def split_and_add_muscle(patient, out_dir):
         cropped, _ = sm.crop_to_content_asym(lab_b, vol_b, pad=5, back_pad_x=back_pad)
         lab_c, vol_c = cropped
         mask_c = (lab_c > 0)
+
+        # per-slice: keep only the largest 2D component of THIS breast, so
+        # chest-wall pieces detached from it on that slice are removed
+        _kept = np.zeros_like(mask_c); _drop = 0
+        for z in range(mask_c.shape[0]):
+            sl = mask_c[z]
+            if not sl.any():
+                continue
+            _l, _k = nd_label(sl)
+            if _k == 1:
+                _kept[z] = sl; continue
+            _s = np.asarray(ndimage.sum(sl, _l, range(1, _k + 1)))
+            big = (_l == 1 + int(np.argmax(_s)))
+            _drop += int(sl.sum() - big.sum()); _kept[z] = big
+        if _drop:
+            print(f"   {name}: per-slice dropped {_drop:,} vox")
+        mask_c = _kept
+        # 3D safety net: after per-slice cleanup, keep only the largest 3D component
+        # _l3, _k3 = nd_label(mask_c)
+        # if _k3 > 1:
+        #     _s3 = np.asarray(ndimage.sum(mask_c, _l3, range(1, _k3 + 1)))
+        #     mask_c = (_l3 == 1 + int(np.argmax(_s3)))
+        #     print(f"   {name}: 3D pass dropped {int(_s3.sum()-_s3.max()):,} vox")
+        # lab_c = np.where(mask_c, lab_c, 0).astype(np.uint8)
+
         muscle_c = sm.add_muscle_contour(mask_c, thickness_vox=thick_vox) & (lab_c == 0)
+
         lab_c[muscle_c] = MUSCLE_LABEL
         if ADD_SKIN:
             lab_c = dm.segment_skin(lab_c, thickness_vox=skin_vox)

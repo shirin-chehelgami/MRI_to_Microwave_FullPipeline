@@ -125,7 +125,7 @@ def predict_breast_prob(image, model, device):
 # =========================================================
 def find_precontrast_series(study_dir):
     EXCLUDE = ["ph1","ph2","ph3","ph4","+c","post","segmentation"]
-    INCLUDE = ["ax dyn pre","pre contrast","pre_contrast","dyn pre","ax 3d dyn","t1 pre","t1"]
+    INCLUDE = ["ax dyn pre","ax dyn", "pre contrast","pre_contrast","dyn pre","ax 3d dyn","t1 pre","t1"]
     candidates = [d for d in study_dir.iterdir() if d.is_dir()
                   and not any(ex in d.name.lower() for ex in EXCLUDE)]
     for kw in INCLUDE:

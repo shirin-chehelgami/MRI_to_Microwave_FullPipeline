@@ -1,0 +1,91 @@
+name = "ExampleFD3DThinWire"
+
+[Problem]
+equations = "ewave"
+
+[Problem.FrequencySweep]
+freq_specifier = "list"
+freq_list = [1e9]
+# freq_specifier can also be "linear_range"
+#freq_specifier = "linear_range"
+#freq_start  = 0.8e8
+#freq_stop = 1e9
+#freq_step = 10
+
+[Problem.Formulation]
+field_solver = "fem"
+solution_order = 1
+thin_wires = true
+
+[Problem.Formulation.TotalField]
+volume_physics = "volume_actual"
+background_volume_physics = "volume_background"
+boundary_physics = "boundary"
+background_boundary_physics = "boundary"
+
+[Problem.Solver]
+threads = 50 #50
+linear_solver = "pardiso" #pardiso, default
+
+[Physics]
+    [Physics.Constitutives]
+        [Physics.Constitutives.volume_actual]
+	    type = "voxel_file"
+            voxel_file = "/Users/chehelgs-ins/Downloads/MRI_To_Microwave_Breast_Data/pipeline_switching/outputs/Breast_MRI_001/breast2/breast2_chamber_1GHz.mat"
+            #type = "tags"
+            #tags = [3001]
+            #[Physics.Constitutives.volume_actual.3000]
+             #   type="simplecomplex"
+              #  real_permittivity=1.0
+               # imag_permittivity=0.0
+               # real_permeability=1.0
+               # imag_permeability=0.0
+            #[Physics.Constitutives.volume_actual.3001]
+             #   type="simplecomplex"
+              #  real_permittivity=5.0
+               # imag_permittivity=-0.5
+                #real_permeability=1.0
+                #imag_permeability=0.0
+    [Physics.BoundaryConditions]
+        [Physics.BoundaryConditions.boundary]
+            type="tags"
+            tags=[2000,2001,100,200] #abc
+            #tags=[2000,100,200] #pec
+            [Physics.BoundaryConditions.boundary.2000]
+                type= "pec"
+            [Physics.BoundaryConditions.boundary.2001]
+                type= "abc"  # pec or abc
+            [Physics.BoundaryConditions.boundary.100]
+                type= "thevenin"
+            [Physics.BoundaryConditions.boundary.200]
+                type= "open"
+    
+[Geometry]
+    [Geometry.volumetric]
+    name = "FacetedChamber"
+    #pec_top = true
+    chamber_type = "open_abc"
+    phantom_radius = 0.07
+    phantom_cyl_length = 0.035
+    freq = 1.0e9 #1.0e9
+    samples_per_wavelength = 14 #15
+    
+
+    [Geometry.wires]
+    name = "FacetedChamberMonopoles"
+    refine_radius = 0.03
+    r0 = 0.0015
+    a = 0.0005
+    freq = 3.0e9
+    scale_factor = 1.22
+
+ 
+[Sources]
+type="Other" #wires handled differently at the moment
+
+[Output]
+save_fields = true
+output_vtklevels = 1
+output_path = "./output/ExampleFD3DThinWire_001_breast2"
+output_vtkfilename = "ExampleFD3DThinWire_001_breast2_with_tumor_1GHz_abc"
+save_physics = true

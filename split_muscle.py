@@ -25,59 +25,118 @@ def pad_volume_3d(data, pad=20):
     padded[pad:pad+Z, pad:pad+Y, pad:pad+X] = data
     return padded
 
-def find_split_matlab_exact(mask):
-    """
-    Exact Python equivalent of MATLAB logic.
-    D3 = A→P = X axis in your data (sagittal slices)
-    D1 = R→L = Y axis in your data (the split axis)
-    """
-    D1, D2, D3 = mask.shape  # z, y, x
-    # Step 1: scan along X to find two-component slices
-    first_two = None
-    last_two = None
+# def find_split_matlab_exact(mask):
+#     """
+#     Exact Python equivalent of MATLAB logic.
+#     D3 = A→P = X axis in your data (sagittal slices)
+#     D1 = R→L = Y axis in your data (the split axis)
+#     """
+#     D1, D2, D3 = mask.shape  # z, y, x
+#     # Step 1: scan along X to find two-component slices
+#     first_two = None
+#     last_two = None
+#     for s in range(D3):
+#         bw = mask[:, :, s]          # 2D slice in (z, y) plane
+#         _, n = nd_label(bw)
+#         if n == 2:
+#             if first_two is None:
+#                 first_two = s
+#             last_two = s
+#         elif n == 1 and first_two is not None:
+#             break
+#     print(f'First two-component X slice: {first_two}')
+#     print(f'Last  two-component X slice: {last_two}')
+
+#     # Step 2: middle slice
+#     mid_slice = (first_two + last_two) // 2
+#     print(f'Middle X slice             : {mid_slice}')
+
+#     # Step 3: connected components on middle slice
+#     bw_mid = mask[:, :, mid_slice]  # shape (z, y)
+#     labeled_mid, n = nd_label(bw_mid)
+#     if n < 2:
+#         raise ValueError(f'Middle slice has only {n} component(s)')
+
+#     # Keep 2 largest
+#     sizes = ndimage.sum(bw_mid, labeled_mid, range(1, n+1))
+#     top2 = np.argsort(sizes)[-2:] + 1
+
+#     # Step 4: centroid of each component  (returns (z, y))
+#     centroids = ndimage.center_of_mass(bw_mid, labeled_mid, top2)
+#     c1_y = centroids[0][1]
+#     c2_y = centroids[1][1]
+
+#     # D1 (Y) increases R→L: smaller Y = right breast
+#     if c1_y < c2_y:
+#         right_centroid_y, left_centroid_y = c1_y, c2_y
+#     else:
+#         right_centroid_y, left_centroid_y = c2_y, c1_y
+#     print(f'Right centroid Y           : {right_centroid_y:.1f}')
+#     print(f'Left  centroid Y           : {left_centroid_y:.1f}')
+
+#     # Step 5: split at midpoint
+#     split_y = int(round((right_centroid_y + left_centroid_y) / 2))
+#     print(f'Split Y                    : {split_y}')
+#     return split_y, right_centroid_y, left_centroid_y, mid_slice
+
+
+
+
+def find_split_matlab_exact(mask, min_frac=0.15, min_sep_frac=0.15):
+    """Scan X for slices with two substantial, well-separated components (the two breasts).
+    Takes the LONGEST such run instead of breaking at the first single-component slice,
+    which made tiny noise fragments at the nipple tip abort the scan."""
+    D1, D2, D3 = mask.shape
+
+    def _two_real(bw):
+        if not bw.any(): return False
+        lbl, n = nd_label(bw)
+        if n < 2: return False
+        sizes = np.asarray(ndimage.sum(bw, lbl, range(1, n+1)))
+        big = np.where(sizes >= min_frac*sizes.sum())[0]     # each breast >= 15% of slice tissue
+        if len(big) != 2: return False
+        c = ndimage.center_of_mass(bw, lbl, (big+1).tolist())
+        return abs(c[0][1]-c[1][1]) >= min_sep_frac*bw.shape[1]   # separated in Y
+
+    ok = np.array([_two_real(mask[:, :, s]) for s in range(D3)])
+    runs = []; rs = None
     for s in range(D3):
-        bw = mask[:, :, s]          # 2D slice in (z, y) plane
-        _, n = nd_label(bw)
-        if n == 2:
-            if first_two is None:
-                first_two = s
-            last_two = s
-        elif n == 1 and first_two is not None:
-            break
+        if ok[s]:
+            if rs is None: rs = s
+        else:
+            if rs is not None: runs.append((rs, s-1, s-rs)); rs = None
+    if rs is not None: runs.append((rs, D3-1, D3-rs))
+    if not runs:
+        raise ValueError("no two-breast region found")
+    first_two, last_two, _ = max(runs, key=lambda r: r[2])
     print(f'First two-component X slice: {first_two}')
     print(f'Last  two-component X slice: {last_two}')
 
-    # Step 2: middle slice
     mid_slice = (first_two + last_two) // 2
     print(f'Middle X slice             : {mid_slice}')
 
-    # Step 3: connected components on middle slice
-    bw_mid = mask[:, :, mid_slice]  # shape (z, y)
+    # ---- unchanged from here down ----
+    bw_mid = mask[:, :, mid_slice]
     labeled_mid, n = nd_label(bw_mid)
     if n < 2:
         raise ValueError(f'Middle slice has only {n} component(s)')
-
-    # Keep 2 largest
     sizes = ndimage.sum(bw_mid, labeled_mid, range(1, n+1))
     top2 = np.argsort(sizes)[-2:] + 1
-
-    # Step 4: centroid of each component  (returns (z, y))
     centroids = ndimage.center_of_mass(bw_mid, labeled_mid, top2)
-    c1_y = centroids[0][1]
-    c2_y = centroids[1][1]
-
-    # D1 (Y) increases R→L: smaller Y = right breast
+    c1_y = centroids[0][1]; c2_y = centroids[1][1]
     if c1_y < c2_y:
         right_centroid_y, left_centroid_y = c1_y, c2_y
     else:
         right_centroid_y, left_centroid_y = c2_y, c1_y
     print(f'Right centroid Y           : {right_centroid_y:.1f}')
     print(f'Left  centroid Y           : {left_centroid_y:.1f}')
-
-    # Step 5: split at midpoint
     split_y = int(round((right_centroid_y + left_centroid_y) / 2))
     print(f'Split Y                    : {split_y}')
     return split_y, right_centroid_y, left_centroid_y, mid_slice
+
+
+
+
 
 def find_inner_edges(mask, right_cy, left_cy, margin_frac=0.05):
     """
