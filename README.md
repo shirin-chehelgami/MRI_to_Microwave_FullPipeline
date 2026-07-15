@@ -141,7 +141,7 @@ One specific breast:
 bash
 
       for cfg in ./configs/Breast_MRI_001/breast1/config_*.toml; do     julia --project=@EIL ./examples/ExampleFD3DThinWire/ExampleFD3DThinWire.jl "$cfg" done
-      One breast, one frequency (no loop needed):
+
 
 One breast, one frequency (no loop needed):
 
