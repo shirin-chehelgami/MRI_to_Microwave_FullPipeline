@@ -287,11 +287,32 @@ def main():
     else:
         ap.error("give --patient or --batch")
  
+    # for p in patients:
+    #     print(f"\n########## {p} ##########")
+    #     run_one_patient(p, args, out_dir)
+
+    failed = []
     for p in patients:
         print(f"\n########## {p} ##########")
-        run_one_patient(p, args, out_dir)
+        try:
+            run_one_patient(p, args, out_dir)
+        except Exception as e:
+            print(f"!!! {p} FAILED: {type(e).__name__}: {e}")
+            failed.append((p, f"{type(e).__name__}: {e}"))
+            continue
+
+    # ---- summary ----
+    print("\n" + "="*60)
+    print(f"Processed {len(patients)-len(failed)}/{len(patients)} patients successfully")
+    if failed:
+        print(f"\n{len(failed)} FAILED:")
+        for p, err in failed:
+            print(f"  {p:20s}  {err}")
+    else:
+        print("no failures")
+    print("="*60)
  
  
 if __name__ == "__main__":
     main()
-
+  
