@@ -32,7 +32,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
  
 import preprocessing as pp
-N4_MODE = "adge"          # None | "whole" | "edge"
+N4_MODE = "edge"          # None | "whole" | "edge"
 N4_FEATHER_MM = 30.0    # edge mode only
  
  
@@ -173,61 +173,129 @@ def split_and_add_muscle(patient, out_dir):
 # =====================================================================
 # STAGE 3+4 — dielectric mapping (selected versions, cached breakpoints) + plots
 # =====================================================================
+# def process_breast(breast, patient, out_dir):
+#     name = breast["name"]; vol = breast["vol"].astype(np.float64); label = breast["label"]
+#     vol_orig = vol.copy()
+#     spacing = breast.get("spacing", (1.0,1.0,1.0))
+#     bdir = out_dir / patient / name; bdir.mkdir(parents=True, exist_ok=True)
+#     aff = np.diag([spacing[0], spacing[1], spacing[2], 1.0])
+ 
+#     if N4_MODE == "whole":
+#             vol = pp.apply_n4_whole(vol, (label > 0)).astype(np.float64)
+#     elif N4_MODE == "edge":
+#         vol = pp.apply_n4_edge(vol, label, spacing, feather_mm=N4_FEATHER_MM).astype(np.float64)
+#     if N4_MODE:                              # clean the specks N4's division amplifies
+#         vol = pp.switching_median(vol).astype(np.float64)
+ 
+#     nib.Nifti1Image(vol.astype(np.float32), aff).to_filename(bdir/f"{name}_image.nii.gz")
+#     nib.Nifti1Image(label, aff).to_filename(bdir/f"{name}_label.nii.gz")
+ 
+#     # ---- compute breakpoints + bands ONCE, only for the selected sources ----
+#     srcs = tuple(s for s, _ in VERSIONS)             # e.g. ("seg",) or ("seg","gmm")
+#     prep = dm.prepare_breaks(vol, label, sources=srcs)
+ 
+#     per_freq = {}
+#     plotted_sample = False
+#     for f in FREQS:
+#         results = {}
+#         for src, vname in VERSIONS:
+#             x_break = prep[src]["x_break"]
+#             er, ei = dm.convert_ours(vol, label, x_break, f)        # frequency-dependent only
+#             if TUMOR_PERCENTILE: dm.assign_tumor_percentile(er, ei, label, vol, f)
+#             er, ei = dm.assign_muscle(er, ei, label, f)
+#             if ADD_SKIN: dm.assign_skin(er, ei, label, f, vol=vol)
+#             results[vname] = (er, ei)
+#             if not plotted_sample and src == "seg":
+#                             cmp.mri_vs_permittivity(vol_orig, vol, er, bdir/f"{name}_mri_vs_eps_sample_{f:g}GHz.png")
+#                             # cmp.mri_vs_permittivity(vol, er, bdir/f"{name}_preprocessed_mri_vs_eps_sample_{f:g}GHz.png")
+#                             plotted_sample = True
+#             print(f"  === {name} @ {f:g} GHz ({vname}) ===")
+#             print(f"    er:  min={er.min():.3f}  max={er.max():.3f}  nan={np.isnan(er).sum()}")
+#             print(f"    ei:  min={ei.min():.3f}  max={ei.max():.3f}  nan={np.isnan(ei).sum()}")
+#             print(f"    Negative ei: {(ei < 0).sum()}")
+ 
+#             if np.any(ei < 0):
+#                 print("    !!! NEGATIVE IMAGINARY PART DETECTED !!!")
+ 
+#             nib.Nifti1Image(er, aff).to_filename(bdir/f"{name}_{vname}_real_{f:g}GHz.nii.gz")
+#             nib.Nifti1Image(ei, aff).to_filename(bdir/f"{name}_{vname}_imag_{f:g}GHz.nii.gz")
+ 
+#         for s in srcs:
+#             results[f"subt_{s}"] = prep[s]["subt"]
+#         per_freq[f] = results
+#         print(f"    {name} @ {f:g} GHz done ({', '.join(v for _, v in VERSIONS)})")
+#     breast["results"] = per_freq
+#     return per_freq
+ 
+ 
+
 def process_breast(breast, patient, out_dir):
-    name = breast["name"]; vol = breast["vol"].astype(np.float64); label = breast["label"]
-    vol_orig = vol.copy()
+    name = breast["name"]; vol0 = breast["vol"].astype(np.float64); label = breast["label"]
     spacing = breast.get("spacing", (1.0,1.0,1.0))
     bdir = out_dir / patient / name; bdir.mkdir(parents=True, exist_ok=True)
     aff = np.diag([spacing[0], spacing[1], spacing[2], 1.0])
- 
+
+    # ---- build BOTH volumes ----
+    vol_raw = vol0.copy()
+    vol_n4  = vol0.copy()
     if N4_MODE == "whole":
-            vol = pp.apply_n4_whole(vol, (label > 0)).astype(np.float64)
+        vol_n4 = pp.apply_n4_whole(vol_n4, (label > 0)).astype(np.float64)
     elif N4_MODE == "edge":
-        vol = pp.apply_n4_edge(vol, label, spacing, feather_mm=N4_FEATHER_MM).astype(np.float64)
-    if N4_MODE:                              # clean the specks N4's division amplifies
-        vol = pp.switching_median(vol).astype(np.float64)
- 
-    nib.Nifti1Image(vol.astype(np.float32), aff).to_filename(bdir/f"{name}_image.nii.gz")
+        vol_n4 = pp.apply_n4_edge(vol_n4, label, spacing, feather_mm=N4_FEATHER_MM).astype(np.float64)
+    if N4_MODE:
+        vol_n4 = pp.switching_median(vol_n4).astype(np.float64)
+    VARIANTS = [("raw", vol_raw), ("n4", vol_n4)]
+
+    nib.Nifti1Image(vol_raw.astype(np.float32), aff).to_filename(bdir/f"{name}_image_raw.nii.gz")
+    nib.Nifti1Image(vol_n4.astype(np.float32),  aff).to_filename(bdir/f"{name}_image_n4.nii.gz")
     nib.Nifti1Image(label, aff).to_filename(bdir/f"{name}_label.nii.gz")
- 
-    # ---- compute breakpoints + bands ONCE, only for the selected sources ----
-    srcs = tuple(s for s, _ in VERSIONS)             # e.g. ("seg",) or ("seg","gmm")
-    prep = dm.prepare_breaks(vol, label, sources=srcs)
- 
+
+    # ---- breakpoints once per (variant, source) ----
+    srcs = tuple(s for s, _ in VERSIONS)
+    prep = {vt: dm.prepare_breaks(v, label, sources=srcs) for vt, v in VARIANTS}
+
     per_freq = {}
-    plotted_sample = False
+    plotted = False
     for f in FREQS:
         results = {}
-        for src, vname in VERSIONS:
-            x_break = prep[src]["x_break"]
-            er, ei = dm.convert_ours(vol, label, x_break, f)        # frequency-dependent only
-            if TUMOR_PERCENTILE: dm.assign_tumor_percentile(er, ei, label, vol, f)
-            er, ei = dm.assign_muscle(er, ei, label, f)
-            if ADD_SKIN: dm.assign_skin(er, ei, label, f, vol=vol)
-            results[vname] = (er, ei)
-            if not plotted_sample and src == "seg":
-                            cmp.mri_vs_permittivity(vol_orig, vol, er, bdir/f"{name}_mri_vs_eps_sample_{f:g}GHz.png")
-                            # cmp.mri_vs_permittivity(vol, er, bdir/f"{name}_preprocessed_mri_vs_eps_sample_{f:g}GHz.png")
-                            plotted_sample = True
-            print(f"  === {name} @ {f:g} GHz ({vname}) ===")
-            print(f"    er:  min={er.min():.3f}  max={er.max():.3f}  nan={np.isnan(er).sum()}")
-            print(f"    ei:  min={ei.min():.3f}  max={ei.max():.3f}  nan={np.isnan(ei).sum()}")
-            print(f"    Negative ei: {(ei < 0).sum()}")
- 
-            if np.any(ei < 0):
-                print("    !!! NEGATIVE IMAGINARY PART DETECTED !!!")
- 
-            nib.Nifti1Image(er, aff).to_filename(bdir/f"{name}_{vname}_real_{f:g}GHz.nii.gz")
-            nib.Nifti1Image(ei, aff).to_filename(bdir/f"{name}_{vname}_imag_{f:g}GHz.nii.gz")
- 
-        for s in srcs:
-            results[f"subt_{s}"] = prep[s]["subt"]
+        for vt, v in VARIANTS:
+            for src, vname in VERSIONS:
+                er, ei = dm.convert_ours(v, label, prep[vt][src]["x_break"], f)
+                if TUMOR_PERCENTILE: dm.assign_tumor_percentile(er, ei, label, v, f)
+                er, ei = dm.assign_muscle(er, ei, label, f)
+                if ADD_SKIN: dm.assign_skin(er, ei, label, f, vol=v)
+
+                key = vname if vt == "raw" else f"{vname}_n4"   # keeps 2-version plots working
+                results[key] = (er, ei)
+
+                nib.Nifti1Image(er, aff).to_filename(bdir/f"{name}_{vname}_{vt}_real_{f:g}GHz.nii.gz")
+                nib.Nifti1Image(ei, aff).to_filename(bdir/f"{name}_{vname}_{vt}_imag_{f:g}GHz.nii.gz")
+
+                print(f"  === {name} @ {f:g} GHz ({vname}, {vt}) ===")
+                print(f"    er: min={er.min():.3f} max={er.max():.3f} nan={np.isnan(er).sum()}")
+                print(f"    ei: min={ei.min():.3f} max={ei.max():.3f} nan={np.isnan(ei).sum()}  neg={(ei<0).sum()}")
+
+                if not plotted and src == "seg" and vt == "n4":
+                    cmp.mri_vs_permittivity(vol_raw, vol_n4, results[VERSIONS[0][1]][0],
+                        bdir/f"{name}_eps_from_RAW_{f:g}GHz.png",
+                        title=f"{name} @ {f:g} GHz — ε′ from RAW (no N4)")
+                    cmp.mri_vs_permittivity(vol_raw, vol_n4, er,
+                        bdir/f"{name}_eps_from_N4_{f:g}GHz.png",
+                        title=f"{name} @ {f:g} GHz — ε′ from N4={N4_MODE}")
+                    plotted = True
+
+        for vt, _ in VARIANTS:
+            for s in srcs:
+                results[f"subt_{s}_{vt}"] = prep[vt][s]["subt"]
+        results["subt_seg"] = prep["raw"]["seg"]["subt"]          # back-compat for cmp plots
+        if "gmm" in srcs: results["subt_gmm"] = prep["raw"]["gmm"]["subt"]
         per_freq[f] = results
-        print(f"    {name} @ {f:g} GHz done ({', '.join(v for _, v in VERSIONS)})")
     breast["results"] = per_freq
     return per_freq
- 
- 
+
+
+
+
 def run_one_patient(patient, args, out_dir):
     print(f"=== {patient} ===  (muscle {MUSCLE_THICKNESS_MM} mm)")
  
@@ -343,4 +411,4 @@ def main():
  
 if __name__ == "__main__":
     main()
-  
+
