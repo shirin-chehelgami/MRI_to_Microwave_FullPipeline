@@ -217,16 +217,13 @@ def _get_predictor():
                             device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
                             verbose=False, allow_tqdm=True)
         folds = tuple(range(len([d for d in NNUNET_MODEL_DIR.iterdir()
-<<<<<<< HEAD
                                  if d.name.startswith("fold_")])))
-=======
-                                if d.name.startswith("fold_")])))
->>>>>>> 95a62d9278519d9f9f3cfd30ad3bb5ac86b4f789
         # folds = (0,)      # single fold — avoids the CPU accumulate bug, ~5x faster on CPU
         p.initialize_from_trained_model_folder(str(NNUNET_MODEL_DIR), use_folds=folds,
                                                checkpoint_name="checkpoint_final.pth")
         _PREDICTOR = p
     return _PREDICTOR
+    
 
 def segment_tumor_with_model(patient_id, img_ras, dicom_aff):
     """Run MAMA-MIA nnU-Net on the RAW first post-contrast DICOM series; return tumor on RAS grid."""
