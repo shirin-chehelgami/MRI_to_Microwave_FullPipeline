@@ -229,62 +229,62 @@ def add_muscle(breast_mask_single, max_x_global, side, min_row_voxels=5):
 
 
 
-# def add_muscle_contour(breast_mask_single, thickness_vox, min_row_voxels=5):
-#     """Continuous constant-thickness layer following the breast's POSTERIOR surface.
-#     Built as a morphological shell (dilate - breast) restricted to the posterior side,
-#     so it stays connected across steps in the contour, unlike per-row X extrusion."""
-#     from scipy.ndimage import binary_dilation
-#     dil   = binary_dilation(breast_mask_single, iterations=thickness_vox)
-#     shell = dil & ~breast_mask_single
-#     Z, Y, X = breast_mask_single.shape
-#     post = np.zeros_like(breast_mask_single)
-#     for z in range(Z):
-#         sl = breast_mask_single[z, :, :]
-#         if not sl.any():
-#             continue
-#         row_counts = sl.sum(axis=1)
-#         real_rows = np.where(row_counts >= min_row_voxels)[0]
-#         if len(real_rows) == 0:
-#             continue
-#         for y in range(real_rows.min(), real_rows.max() + 1):
-#             xs = np.where(sl[y, :])[0]
-#             if len(xs) == 0:
-#                 continue
-#             post[z, y, xs.max() + 1:] = True    # posterior side of this row
-#     return shell & post
-
-
-
 def add_muscle_contour(breast_mask_single, thickness_vox, min_row_voxels=5):
-    """Constant-thickness posterior (chest-wall) layer. Enclosed holes inside the breast are
-    filled first so they never receive muscle; muscle goes behind every OPEN segment, so a
-    fold in the posterior surface gets backing while interior holes do not."""
-    from scipy.ndimage import binary_dilation, binary_fill_holes
-    filled = np.zeros_like(breast_mask_single)
-    for z in range(breast_mask_single.shape[0]):
-        if breast_mask_single[z].any():
-            filled[z] = binary_fill_holes(breast_mask_single[z])
-
-    dil   = binary_dilation(filled, iterations=thickness_vox)
-    shell = dil & ~filled
+    """Continuous constant-thickness layer following the breast's POSTERIOR surface.
+    Built as a morphological shell (dilate - breast) restricted to the posterior side,
+    so it stays connected across steps in the contour, unlike per-row X extrusion."""
+    from scipy.ndimage import binary_dilation
+    dil   = binary_dilation(breast_mask_single, iterations=thickness_vox)
+    shell = dil & ~breast_mask_single
     Z, Y, X = breast_mask_single.shape
     post = np.zeros_like(breast_mask_single)
     for z in range(Z):
-        sl = filled[z]
+        sl = breast_mask_single[z, :, :]
         if not sl.any():
             continue
-        rr = np.where(sl.sum(axis=1) >= min_row_voxels)[0]
-        if len(rr) == 0:
+        row_counts = sl.sum(axis=1)
+        real_rows = np.where(row_counts >= min_row_voxels)[0]
+        if len(real_rows) == 0:
             continue
-        for y in range(rr.min(), rr.max() + 1):
+        for y in range(real_rows.min(), real_rows.max() + 1):
             xs = np.where(sl[y, :])[0]
             if len(xs) == 0:
                 continue
-            brk = np.where(np.diff(xs) > 1)[0]
-            ends = list(xs[brk]) + [xs[-1]]        # back edge of every OPEN segment
-            for dx in ends:
-                post[z, y, dx + 1:] = True
-    return shell & post & ~breast_mask_single
+            post[z, y, xs.max() + 1:] = True    # posterior side of this row
+    return shell & post
+
+
+
+# def add_muscle_contour(breast_mask_single, thickness_vox, min_row_voxels=5):
+#     """Constant-thickness posterior (chest-wall) layer. Enclosed holes inside the breast are
+#     filled first so they never receive muscle; muscle goes behind every OPEN segment, so a
+#     fold in the posterior surface gets backing while interior holes do not."""
+#     from scipy.ndimage import binary_dilation, binary_fill_holes
+#     filled = np.zeros_like(breast_mask_single)
+#     for z in range(breast_mask_single.shape[0]):
+#         if breast_mask_single[z].any():
+#             filled[z] = binary_fill_holes(breast_mask_single[z])
+
+#     dil   = binary_dilation(filled, iterations=thickness_vox)
+#     shell = dil & ~filled
+#     Z, Y, X = breast_mask_single.shape
+#     post = np.zeros_like(breast_mask_single)
+#     for z in range(Z):
+#         sl = filled[z]
+#         if not sl.any():
+#             continue
+#         rr = np.where(sl.sum(axis=1) >= min_row_voxels)[0]
+#         if len(rr) == 0:
+#             continue
+#         for y in range(rr.min(), rr.max() + 1):
+#             xs = np.where(sl[y, :])[0]
+#             if len(xs) == 0:
+#                 continue
+#             brk = np.where(np.diff(xs) > 1)[0]
+#             ends = list(xs[brk]) + [xs[-1]]        # back edge of every OPEN segment
+#             for dx in ends:
+#                 post[z, y, dx + 1:] = True
+#     return shell & post & ~breast_mask_single
 
 
 def extend_muscle_padded(muscle, thickness=25):
