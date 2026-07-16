@@ -87,5 +87,5 @@ type="Other" #wires handled differently at the moment
 save_fields = true
 output_vtklevels = 1
 output_path = "./output/ExampleFD3DThinWire_001_breast2"
-output_vtkfilename = "ExampleFD3DThinWire_001_breast2_with_tumor_1GHz_abc"
+output_vtkfilename = "ExampleFD3DThinWire_001_breast2_1GHz_abc"
 save_physics = true
