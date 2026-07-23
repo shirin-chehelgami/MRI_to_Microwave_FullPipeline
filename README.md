@@ -133,21 +133,19 @@ bash
 
       for cfg in ./configs/Breast_MRI_001/breast*/config_*.toml; do     echo ">>> $cfg"     julia --project=@EIL ./examples/ExampleFD3DThinWire/ExampleFD3DThinWire.jl "$cfg" done
       Change 001 → 002 for the other subject.
-      One specific breast:
 
 
 One specific breast:
 
 bash
 
-      for cfg in ./configs/Breast_MRI_001/breast1/config_*.toml; do     julia --project=@EIL ./examples/ExampleFD3DThinWire/ExampleFD3DThinWire.jl "$cfg" done
-
+     --project=@EIL ./examples/ExampleFD3DThinWire/ExampleFD3DThinWire.jl "$cfg"; done
 
 One breast, one frequency (no loop needed):
 
 bash
 
-      julia --project=@EIL ./examples/ExampleFD3DThinWire/ExampleFD3DThinWire.jl \     ./configs/Breast_MRI_001/breast1/config_1GHz.toml
+      for cfg in ./configs/Breast_MRI_001/breast1/config_*.toml; do julia --project=@EIL ./examples/ExampleFD3DThinWire/ExampleFD3DThinWire.jl "$cfg"; done
 
       
 Everything (all patients):
